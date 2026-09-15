@@ -1,0 +1,1797 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor visivo — Unika</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.2/jszip.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; font-family: 'DM Sans', Arial, sans-serif; }
+.top-bar {
+  height: 56px; background: #2E2E2C; color: #FAF8F4; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 1rem; font-size: 0.85rem; gap: 1rem; flex-wrap: nowrap;
+}
+.top-bar strong { font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; }
+.top-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.top-actions button {
+  background: #6B5344; color: #FEFCFA; border: none; padding: 0.5rem 0.9rem;
+  font-size: 0.78rem; cursor: pointer; border-radius: 4px; transition: background 0.2s;
+  font-family: inherit;
+}
+.top-actions button:hover { background: #8B7355; }
+.top-actions button.ghost-btn { background: transparent; border: 1px solid rgba(254,252,250,0.3); }
+.top-actions button.ghost-btn.active { background: rgba(254,252,250,0.15); border-color: #C9B5A0; }
+.top-actions button.export-btn { background: #A67C52; font-weight: 500; }
+.top-actions button.export-btn:hover { background: #bd8f61; }
+.top-actions .sep { width: 1px; height: 24px; background: rgba(254,252,250,0.2); margin: 0 0.3rem; }
+.editor-row { display: flex; height: calc(100vh - 56px); }
+
+#blocks { width: 220px; overflow-y: auto; border-right: 1px solid #ddd; background: #FAF8F4; flex-shrink: 0; }
+.panel-title { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: #8A8784; padding: 1rem 0.9rem 0.5rem; }
+.block-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0 0.7rem 0.6rem; }
+.block-btn {
+  background: #fff; border: 1px solid #ddd6ca; border-radius: 6px; padding: 0.8rem 0.4rem;
+  font-size: 0.72rem; color: #2E2E2C; cursor: grab; text-align: center; transition: border-color 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+.block-btn:hover { border-color: #A67C52; transform: translateY(-1px); }
+.block-btn .ico { display: block; font-size: 1.2rem; margin-bottom: 0.3rem; }
+.block-hint { font-size: 0.68rem; color: #A9A29A; padding: 0.4rem 0.9rem 1rem; line-height: 1.5; }
+
+#canvas-wrap { flex: 1; min-width: 0; background: #d8d3c8; overflow: auto; display: flex; justify-content: center; }
+#canvas-frame { width: 100%; height: 100%; border: none; background: #fff; transition: width 0.2s; }
+
+#panel-right { width: 300px; overflow-y: auto; border-left: 1px solid #ddd; background: #FAF8F4; flex-shrink: 0; }
+#layers-container { padding: 0 0.9rem 0.5rem; max-height: 160px; overflow-y: auto; }
+.layer-row { font-size: 0.75rem; padding: 0.4rem 0.6rem; border-radius: 4px; cursor: pointer; color: #5A5856; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.layer-row:hover { background: #efe9df; }
+.layer-row.active { background: #A67C52; color: #fff; }
+
+#selected-badge { margin: 0 0.9rem 0.6rem; font-size: 0.72rem; color: #fff; background: #6B5344; padding: 0.4rem 0.7rem; border-radius: 4px; }
+#selected-badge.empty { background: transparent; color: #A9A29A; border: 1px dashed #cfc7ba; }
+.sel-actions { display: flex; gap: 0.5rem; margin: 0 0.9rem 1rem; }
+.sel-actions button { flex: 1; font-size: 0.7rem; padding: 0.45rem; border: 1px solid #ddd6ca; background: #fff; border-radius: 4px; cursor: pointer; }
+.sel-actions button:hover { border-color: #A67C52; }
+.sel-actions button.danger:hover { border-color: #b95050; color: #b95050; }
+
+.field-group { padding: 0.3rem 0.9rem 0.9rem; border-top: 1px solid #e5e0d8; }
+.field-group summary { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8784; padding: 0.7rem 0; cursor: pointer; }
+.field-row { display: flex; gap: 0.5rem; margin-bottom: 0.55rem; align-items: end; }
+.field { flex: 1; min-width: 0; }
+.field label { display: block; font-size: 0.65rem; color: #8A8784; margin-bottom: 0.25rem; }
+.field input[type="text"], .field input[type="number"], .field select, .field textarea {
+  width: 100%; font-size: 0.78rem; padding: 0.4rem 0.5rem; border: 1px solid #ddd6ca; border-radius: 4px;
+  font-family: inherit; background: #fff; color: #2E2E2C;
+}
+.field input[type="color"] { width: 100%; height: 32px; padding: 2px; border: 1px solid #ddd6ca; border-radius: 4px; background: #fff; cursor: pointer; }
+.field.checkbox { display: flex; align-items: center; gap: 0.4rem; flex-direction: row; }
+.field.checkbox label { margin: 0; }
+.align-btns { display: flex; gap: 0.3rem; }
+.align-btns button { flex: 1; padding: 0.4rem; border: 1px solid #ddd6ca; background: #fff; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+.align-btns button.active { background: #A67C52; border-color: #A67C52; color: #fff; }
+.no-selection-msg { padding: 1.2rem 0.9rem; font-size: 0.78rem; color: #A9A29A; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <strong>✎ Editor visivo — Unika</strong>
+  <div class="top-actions">
+    <button class="ghost-btn page-btn active" data-page="home">Home</button>
+    <button class="ghost-btn page-btn" data-page="shop">Negozio</button>
+    <span class="sep"></span>
+    <button class="ghost-btn device-btn active" data-device="Desktop">Desktop</button>
+    <button class="ghost-btn device-btn" data-device="Tablet">Tablet</button>
+    <button class="ghost-btn device-btn" data-device="Mobile">Mobile</button>
+    <span class="sep"></span>
+    <button id="btn-undo">↶ Annulla</button>
+    <button id="btn-redo">↷ Ripeti</button>
+    <span class="sep"></span>
+    <button id="btn-export" class="export-btn">⬇ Esporta sito</button>
+  </div>
+</div>
+<div class="editor-row">
+  <div id="blocks">
+    <p class="panel-title">Base</p>
+    <div class="block-grid">
+      <button class="block-btn" draggable="true" data-block="titolo"><span class="ico">T</span>Titolo</button>
+      <button class="block-btn" draggable="true" data-block="testo"><span class="ico">¶</span>Testo</button>
+      <button class="block-btn" draggable="true" data-block="immagine"><span class="ico">🖼</span>Immagine</button>
+      <button class="block-btn" draggable="true" data-block="pulsante"><span class="ico">▭</span>Pulsante</button>
+      <button class="block-btn" draggable="true" data-block="divisore"><span class="ico">—</span>Divisore</button>
+    </div>
+    <p class="panel-title">Layout</p>
+    <div class="block-grid">
+      <button class="block-btn" draggable="true" data-block="col2"><span class="ico">▥</span>2 colonne</button>
+      <button class="block-btn" draggable="true" data-block="col3"><span class="ico">▦</span>3 colonne</button>
+    </div>
+    <p class="panel-title">E-commerce</p>
+    <div class="block-grid">
+      <button class="block-btn" draggable="true" data-block="prodotto"><span class="ico">🛍</span>Scheda prodotto</button>
+    </div>
+    <p class="block-hint">Clicca un blocco per inserirlo dopo l'elemento selezionato (o in fondo alla pagina). Puoi anche trascinarlo direttamente nel punto desiderato del canvas.</p>
+  </div>
+  <div id="canvas-wrap">
+    <iframe id="canvas-frame" title="Anteprima sito"></iframe>
+  </div>
+  <div id="panel-right">
+    <p class="panel-title">Struttura pagina</p>
+    <div id="layers-container"></div>
+
+    <div id="selected-badge" class="empty">Nessun elemento selezionato</div>
+    <div class="sel-actions">
+      <button id="btn-duplicate">⧉ Duplica</button>
+      <button id="btn-delete" class="danger">🗑 Elimina</button>
+    </div>
+
+    <div id="inspector">
+      <p class="no-selection-msg" id="no-sel-msg">Clicca un elemento nel canvas per modificarne testo e stile. Doppio click su un testo per iniziare a scriverci direttamente.</p>
+
+      <details class="field-group" id="grp-testo" style="display:none;" open>
+        <summary>Testo</summary>
+        <div class="field-row">
+          <div class="field">
+            <label>Font</label>
+            <select id="f-font-family">
+              <option value="var(--font-display)">Cormorant Garamond (titoli)</option>
+              <option value="var(--font-body)">DM Sans (corpo)</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="Verdana, sans-serif">Verdana</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Dimensione</label>
+            <input type="number" id="f-font-size" step="0.5" min="0">
+          </div>
+          <div class="field" style="max-width:80px;">
+            <label>Unità</label>
+            <select id="f-font-size-unit">
+              <option value="px">px</option>
+              <option value="rem">rem</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Peso</label>
+            <select id="f-font-weight">
+              <option value="300">Leggero (300)</option>
+              <option value="400">Normale (400)</option>
+              <option value="500">Medio (500)</option>
+              <option value="600">Semi-bold (600)</option>
+              <option value="700">Bold (700)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Stile</label>
+            <select id="f-font-style">
+              <option value="normal">Normale</option>
+              <option value="italic">Corsivo</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Interlinea</label>
+            <input type="number" id="f-line-height" step="0.1" min="0">
+          </div>
+          <div class="field">
+            <label>Spaziatura lettere (px)</label>
+            <input type="number" id="f-letter-spacing" step="0.5">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Colore testo</label>
+            <input type="color" id="f-color">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Allineamento</label>
+            <div class="align-btns">
+              <button type="button" data-align="left">⯇</button>
+              <button type="button" data-align="center">▬</button>
+              <button type="button" data-align="right">⯈</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="field-group" id="grp-sfondo" style="display:none;" open>
+        <summary>Sfondo</summary>
+        <div class="field-row">
+          <div class="field">
+            <label>Colore sfondo</label>
+            <input type="color" id="f-bg-color">
+          </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="f-bg-none">
+            <label for="f-bg-none">Nessuno</label>
+          </div>
+        </div>
+      </details>
+
+      <details class="field-group" id="grp-spaziatura" style="display:none;" open>
+        <summary>Spaziatura e bordo</summary>
+        <div class="field-row">
+          <div class="field">
+            <label>Padding (interno)</label>
+            <input type="number" id="f-padding" step="1" min="0">
+          </div>
+          <div class="field">
+            <label>Margin (esterno)</label>
+            <input type="number" id="f-margin" step="1" min="0">
+          </div>
+          <div class="field" style="max-width:70px;">
+            <label>Unità</label>
+            <select id="f-space-unit">
+              <option value="px">px</option>
+              <option value="rem">rem</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Angoli arrotondati (px)</label>
+            <input type="number" id="f-radius" step="1" min="0">
+          </div>
+          <div class="field">
+            <label>Larghezza</label>
+            <input type="text" id="f-width" placeholder="es. 100%, 400px">
+          </div>
+        </div>
+      </details>
+
+      <details class="field-group" id="grp-link" style="display:none;" open>
+        <summary>Proprietà link</summary>
+        <div class="field-row">
+          <div class="field">
+            <label>URL (href)</label>
+            <input type="text" id="f-href" placeholder="#contatti">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field checkbox">
+            <input type="checkbox" id="f-target-blank">
+            <label for="f-target-blank">Apri in nuova scheda</label>
+          </div>
+        </div>
+      </details>
+
+      <details class="field-group" id="grp-img" style="display:none;" open>
+        <summary>Proprietà immagine</summary>
+        <div class="field-row">
+          <div class="field">
+            <label>URL immagine</label>
+            <input type="text" id="f-img-src">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Testo alternativo</label>
+            <input type="text" id="f-img-alt">
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+<script>
+var HOME_BODY = `<nav id="top">
+<a href="#top" class="nav-logo">Unika</a>
+<ul class="nav-links">
+<li><a href="#studio">Studio</a></li>
+<li><a href="#filosofia">Filosofia</a></li>
+<li><a href="#olistico">Benessere</a></li>
+<li><a href="#trattamenti">Trattamenti</a></li>
+<li><a href="#ecommerce">Prodotti</a></li>
+<li><a href="#team">Team</a></li>
+<li><a href="shop.html" class="nav-negozio">Negozio</a></li>
+<li><a href="#contatti" class="nav-cta">Prenota</a></li>
+</ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+<div class="hero-left">
+<p class="hero-eyebrow au">Studio di Estetica &amp; Benessere · Torino</p>
+<h1 class="hero-title au d1">La tua<br><em>bellezza</em><br>naturale.</h1>
+<p class="hero-sub au d2">Ogni servizio è pensato per farti sentire accolta, ascoltata e valorizzata. Trattamenti mirati e manualità esperta per il tuo equilibrio autentico.</p>
+<div class="hero-actions au d3">
+<a href="#contatti" class="btn-primary">Prenota ora</a>
+<a href="#olistico" class="btn-ghost">Scopri i massaggi</a>
+</div>
+</div>
+<div class="hero-right">
+<img src="https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=800&q=80" alt="Studio Unika" class="hero-image">
+</div>
+</section>
+
+<!-- GALLERY STUDIO -->
+<section class="gallery-studio" id="studio">
+<p class="section-label">Lo studio</p>
+<h2 class="section-title">Benvenuta a <em>Unika</em></h2>
+<div class="gallery-grid">
+<div class="gallery-item">
+<img src="https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=600&q=80" alt="Studio 1">
+</div>
+<div class="gallery-item">
+<img src="https://images.unsplash.com/photo-1580852823291-988f8006e937?w=600&q=80" alt="Studio 2">
+</div>
+<div class="gallery-item">
+<img src="https://images.unsplash.com/photo-1570172619644-923a1f4308f6?w=600&q=80" alt="Studio 3">
+</div>
+</div>
+</section>
+
+<!-- TRATTAMENTI PREVIEW -->
+<section class="trattamenti-preview" id="trattamenti-preview">
+<p class="section-label">Scopri i nostri servizi</p>
+<h2 class="section-title">I nostri<br><em>trattamenti</em></h2>
+<div class="preview-grid">
+<div class="preview-card">
+<div class="preview-icon">💅</div>
+<h3 class="preview-title">Nail Care</h3>
+<p class="preview-desc">Manicure, pedicure e nail art con tecniche moderne per unghie sempre perfette.</p>
+<a href="#trattamenti" class="preview-link">Scopri di più →</a>
+</div>
+<div class="preview-card">
+<div class="preview-icon">🌿</div>
+<h3 class="preview-title">Massaggi Olistici</h3>
+<p class="preview-desc">Rilassante, ayurvedico, drenante e anti-stress. Un viaggio verso il benessere.</p>
+<a href="#trattamenti" class="preview-link">Scopri di più →</a>
+</div>
+<div class="preview-card">
+<div class="preview-icon">🌸</div>
+<h3 class="preview-title">Trattamenti Viso</h3>
+<p class="preview-desc">Pulizia profonda, idratazione e anti-age. Protocolli personalizzati per ogni pelle.</p>
+<a href="#trattamenti" class="preview-link">Scopri di più →</a>
+</div>
+</div>
+</section>
+
+<!-- FILOSOFIA -->
+<section class="filosofia" id="filosofia">
+<div>
+<p class="section-label">La nostra filosofia</p>
+<h2 class="section-title">Ogni visita,<br>un <em>rituale</em></h2>
+<blockquote class="filosofia-quote">"Da Unika ogni servizio è pensato per farti sentire accolta, ascoltata e valorizzata."</blockquote>
+<p class="filosofia-text">Unika nasce dall'unione di esperienza, passione e attenzione profonda per la cura della persona. Ogni trattamento è studiato per offrire risultati visibili e, allo stesso tempo, regalare un momento di autentico relax. Un'esperienza pensata per te — per donne di ogni età che desiderano sentirsi coccolate, e per chiunque cerchi uno spazio di benessere genuino e rigenerante.</p>
+</div>
+<div>
+<div class="filosofia-values">
+<div class="value-card">
+<p class="value-title">Unicità</p>
+<p class="value-desc">Ogni persona è diversa. I trattamenti sono sempre personalizzati sulle tue esigenze specifiche.</p>
+</div>
+<div class="value-card">
+<p class="value-title">Ascolto</p>
+<p class="value-desc">Partiamo sempre da te: la tua storia, il tuo momento, i tuoi bisogni. L'ascolto è la base di tutto.</p>
+</div>
+<div class="value-card">
+<p class="value-title">Benessere</p>
+<p class="value-desc">Un approccio olistico che unisce estetica e benessere profondo, per sentirti in armonia dentro e fuori.</p>
+</div>
+<div class="value-card">
+<p class="value-title">Qualità</p>
+<p class="value-desc">Prodotti selezionati, tecniche aggiornate e cura meticolosa in ogni dettaglio del servizio.</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- OLISTICO FOCUS -->
+<section class="olistico" id="olistico">
+<div class="olistico-visual">
+<div class="olistico-circle"></div>
+<div class="olistico-circle-sm"></div>
+<div class="olistico-card">
+<p class="olistico-card-title">Il tocco che trasforma</p>
+<p class="olistico-card-text">I massaggi olistici di Unika non sono semplici trattamenti: sono un viaggio sensoriale verso il tuo equilibrio più profondo. Con manualità esperta e presenza autentica, Silvia ti accompagna in un percorso di rilascio, ascolto e rigenerazione del corpo e della mente.</p>
+</div>
+</div>
+<div>
+<p class="section-label">Il cuore di Unika</p>
+<h2 class="section-title">Massaggi<br><em>olistici</em></h2>
+<div class="massaggi-list">
+<div class="massaggio-item">
+<div class="massaggio-dot"></div>
+<div>
+<p class="massaggio-name">Massaggio Rilassante</p>
+<p class="massaggio-desc">Manovre lente e avvolgenti per sciogliere le tensioni fisiche e mentali. Ideale per ritrovare la calma e ricaricare le energie.</p>
+</div>
+</div>
+<div class="massaggio-item">
+<div class="massaggio-dot"></div>
+<div>
+<p class="massaggio-name">Massaggio Ayurvedico</p>
+<p class="massaggio-desc">Tecnica millenaria di origine indiana con oli caldi e manovre ritmiche per riequilibrare il flusso energetico del corpo.</p>
+</div>
+</div>
+<div class="massaggio-item">
+<div class="massaggio-dot"></div>
+<div>
+<p class="massaggio-name">Massaggio Drenante</p>
+<p class="massaggio-desc">Stimolazione del sistema linfatico per eliminare le tossine e ridurre gonfiore e ritenzione idrica. Leggero e profondamente benefico.</p>
+</div>
+</div>
+<div class="massaggio-item">
+<div class="massaggio-dot"></div>
+<div>
+<p class="massaggio-name">Massaggio Anti-stress</p>
+<p class="massaggio-desc">Focus su collo, spalle e schiena: le zone più colpite dallo stress quotidiano. Un'ora per rimettere tutto al suo posto.</p>
+</div>
+</div>
+<div class="massaggio-item">
+<div class="massaggio-dot"></div>
+<div>
+<p class="massaggio-name">Percorso Benessere Personalizzato</p>
+<p class="massaggio-desc">Un rituale su misura che combina più tecniche in un'esperienza unica e trasformativa. Il nostro fiore all'occhiello.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- TRATTAMENTI COMPLETI -->
+<section class="trattamenti" id="trattamenti">
+<div class="trattamenti-header">
+<div>
+<p class="section-label">I nostri servizi</p>
+<h2 class="section-title">Tutti i<br><em>trattamenti</em></h2>
+</div>
+<p class="trattamenti-note">Dalla cura estetica classica ai rituali olistici. Contattaci per costruire il percorso più adatto a te.</p>
+</div>
+<div class="trattamenti-grid">
+<div class="trat-card">
+<p class="trat-num">01</p>
+<span class="trat-icon">💅</span>
+<h3 class="trat-name">Manicure & Nail Art</h3>
+<p class="trat-desc">Dalla manicure classica alle tecniche moderne: semipermanente, gel, ricostruzione e nail art personalizzata per mani sempre impeccabili.</p>
+<span class="trat-tag">Nail Care</span>
+</div>
+<div class="trat-card">
+<p class="trat-num">02</p>
+<span class="trat-icon">🦶</span>
+<h3 class="trat-name">Pedicure</h3>
+<p class="trat-desc">Pedicure estetica con trattamenti idratanti e rigeneranti per piedi sani, morbidi e curati in ogni dettaglio.</p>
+<span class="trat-tag">Foot Care</span>
+</div>
+<div class="trat-card">
+<p class="trat-num">03</p>
+<span class="trat-icon">✨</span>
+<h3 class="trat-name">Ceretta & Epilazione</h3>
+<p class="trat-desc">Ceretta tradizionale e lycon con prodotti delicati sulla pelle. Risultati duraturi per una pelle liscia e luminosa.</p>
+<span class="trat-tag">Depilazione</span>
+</div>
+<div class="trat-card">
+<p class="trat-num">04</p>
+<span class="trat-icon">🌿</span>
+<h3 class="trat-name">Massaggi Olistici</h3>
+<p class="trat-desc">Rilassante, ayurvedico, drenante, anti-stress e percorsi su misura. Un viaggio sensoriale verso il benessere autentico.</p>
+<span class="trat-tag">Benessere</span>
+</div>
+<div class="trat-card">
+<p class="trat-num">05</p>
+<span class="trat-icon">🌸</span>
+<h3 class="trat-name">Trattamenti Viso</h3>
+<p class="trat-desc">Pulizia profonda, idratazione, luminosità e anti-age. Protocolli personalizzati per ogni tipo di pelle.</p>
+<span class="trat-tag">Beauty Face</span>
+</div>
+<div class="trat-card">
+<p class="trat-num">06</p>
+<span class="trat-icon">💆</span>
+<h3 class="trat-name">Trattamenti Corpo</h3>
+<p class="trat-desc">Scrub, avvolgimenti, trattamenti rimodellanti e anti-cellulite. Prendersi cura del corpo come un atto d'amore verso sé stesse.</p>
+<span class="trat-tag">Body Care</span>
+</div>
+</div>
+<p style="margin-top:2.5rem; font-size:0.8rem; color:var(--text-soft); text-align:center;">Per informazioni sui prezzi e per prenotare, contattaci direttamente — costruiamo insieme il percorso più adatto a te.</p>
+</section>
+
+<!-- PROMOZIONI PREVIEW -->
+<section class="promozioni-preview">
+<p class="section-label">Offerte del momento</p>
+<h2 class="section-title">Le nostre<br><em>promozioni</em></h2>
+<div class="promo-preview-grid">
+<div class="promo-preview-card">
+<div class="promo-preview-badge">Aprile</div>
+<h3 class="promo-preview-title">Rituale Primavera</h3>
+<p class="promo-preview-desc">Massaggio rilassante 60' + trattamento viso rigenerante. Un'esperienza pensata per rinascere insieme alla stagione. Il tuo momento di cura totale.</p>
+</div>
+<div class="promo-preview-card">
+<div class="promo-preview-badge">Novità</div>
+<h3 class="promo-preview-title">Benvenuta da Unika</h3>
+<p class="promo-preview-desc">Per chi viene da noi per la prima volta: una consulenza personalizzata gratuita e un'offerta esclusiva sul primo trattamento.</p>
+</div>
+</div>
+<div class="promo-view-all">
+<a href="#promozioni" class="btn-primary">Vedi tutte le promozioni</a>
+</div>
+</section>
+
+<!-- PROMOZIONI COMPLETE -->
+<section class="promozioni" id="promozioni">
+<div class="promo-header">
+<p class="section-label">Offerte del momento</p>
+<h2 class="section-title">Tutte le<br><em>promozioni</em></h2>
+</div>
+<div class="promo-grid">
+<div class="promo-card">
+<span class="promo-badge">Aprile</span>
+<p class="promo-eyebrow">Benessere completo</p>
+<h3 class="promo-title">Rituale Primavera</h3>
+<p class="promo-desc">Massaggio rilassante 60' + trattamento viso rigenerante. Un'esperienza pensata per rinascere insieme alla stagione. Il tuo momento di cura totale.</p>
+<p class="promo-validity">Valido fino al 30 aprile 2026 · Su prenotazione</p>
+</div>
+<div class="promo-card">
+<span class="promo-badge">Novità</span>
+<p class="promo-eyebrow">Prima visita</p>
+<h3 class="promo-title">Benvenuta da Unika</h3>
+<p class="promo-desc">Per chi viene da noi per la prima volta: una consulenza personalizzata gratuita e un'offerta esclusiva sul primo trattamento. Il modo migliore per iniziare.</p>
+<p class="promo-validity">Per nuovi clienti · Contattaci per info</p>
+</div>
+<div class="promo-card">
+<span class="promo-badge">Duo</span>
+<p class="promo-eyebrow">Porta un'amica</p>
+<h3 class="promo-title">Benessere in Due</h3>
+<p class="promo-desc">Vivi l'esperienza Unika insieme a chi vuoi bene. Massaggio ayurvedico in coppia con un'atmosfera intima e raccolta. Un regalo che si ricorda.</p>
+<p class="promo-validity">Disponibile su richiesta · Per 2 persone</p>
+</div>
+</div>
+<div class="promo-cta-wrap">
+<a href="#contatti" class="btn-primary">Prenota la tua promozione</a>
+<p class="promo-note">Le promozioni sono soggette a disponibilità. Contattaci per maggiori informazioni.</p>
+</div>
+</section>
+
+<!-- ECOMMERCE -->
+<section class="ecommerce" id="ecommerce">
+<p class="section-label">Linea esclusiva</p>
+<h2 class="section-title">I nostri<br><em>prodotti</em></h2>
+<p class="ecommerce-intro">Una linea pensata e formulata da Silvia, realizzata in collaborazione con un'azienda specializzata. Gli stessi prodotti che utilizziamo nei trattamenti — disponibili per l'acquisto direttamente in studio durante la tua visita.</p>
+<div class="ecommerce-grid">
+<div class="ecommerce-card">
+<img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&q=80" alt="Olio Rigenerante" class="ecommerce-image">
+<div class="ecommerce-content">
+<p class="ecommerce-label">Corpo · Oli</p>
+<h3 class="ecommerce-name">Olio Rigenerante Corpo</h3>
+<p class="ecommerce-desc">Formula ricca di oli vegetali pregiati per nutrire e rigenerare la pelle. Prolunga il benessere del massaggio.</p>
+<p class="ecommerce-price">€ 38,00</p>
+<a href="#contatti" class="ecommerce-buy">🛒 Prenota</a>
+</div>
+</div>
+<div class="ecommerce-card">
+<img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&q=80" alt="Siero Illuminante" class="ecommerce-image">
+<div class="ecommerce-content">
+<p class="ecommerce-label">Viso · Sieri</p>
+<h3 class="ecommerce-name">Siero Illuminante Viso</h3>
+<p class="ecommerce-desc">Siero concentrato ad azione rigenerante e luminosante. Per restituire vitalità alla pelle affaticata.</p>
+<p class="ecommerce-price">€ 52,00</p>
+<a href="#contatti" class="ecommerce-buy">🛒 Prenota</a>
+</div>
+</div>
+<div class="ecommerce-card">
+<img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80" alt="Scrub Esfoliante" class="ecommerce-image">
+<div class="ecommerce-content">
+<p class="ecommerce-label">Corpo · Scrub</p>
+<h3 class="ecommerce-name">Scrub Esfoliante Naturale</h3>
+<p class="ecommerce-desc">Scrub a base di ingredienti naturali per una pulizia profonda e una pelle vellutata. Perfetto prima di ogni trattamento corpo.</p>
+<p class="ecommerce-price">€ 29,00</p>
+<a href="#contatti" class="ecommerce-buy">🛒 Prenota</a>
+</div>
+</div>
+<div class="ecommerce-card">
+<img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80" alt="Blend Aromaterapeutico" class="ecommerce-image">
+<div class="ecommerce-content">
+<p class="ecommerce-label">Benessere · Aromaterapia</p>
+<h3 class="ecommerce-name">Blend Aromaterapeutico</h3>
+<p class="ecommerce-desc">Miscela di oli essenziali puri per creare armonia e calma. Per portare l'atmosfera Unika anche a casa tua.</p>
+<p class="ecommerce-price">€ 24,00</p>
+<a href="#contatti" class="ecommerce-buy">🛒 Prenota</a>
+</div>
+</div>
+</div>
+</section>
+
+<!-- TEAM -->
+<section class="team" id="team">
+<div class="team-header">
+<p class="section-label">Chi siamo</p>
+<h2 class="section-title">Il nostro <em>team</em></h2>
+</div>
+<div class="team-grid">
+<div class="team-card">
+<div class="team-avatar">S</div>
+<div>
+<h3 class="team-name">Silvia</h3>
+<p class="team-role">Proprietaria &amp; Professionista del Benessere</p>
+<p class="team-bio">Silvia è l'anima di Unika. Estetista e operatrice olistica con una formazione profonda e una passione genuina per la cura della persona. Ogni trattamento è per lei un atto di cura autentica: ascolta, osserva e crea un'esperienza su misura che va oltre l'estetica, toccando il benessere del corpo e della mente.</p>
+<div class="team-tags">
+<span class="team-tag">Massaggi Olistici</span>
+<span class="team-tag">Trattamenti Viso</span>
+<span class="team-tag">Estetica</span>
+<span class="team-tag">Benessere</span>
+</div>
+</div>
+</div>
+<div class="team-card">
+<div class="team-avatar">I</div>
+<div>
+<h3 class="team-name">Irene</h3>
+<p class="team-role">Assistente Diretta</p>
+<p class="team-bio">Irene è il supporto prezioso che rende ogni visita fluida e accogliente. Con discrezione e cura, garantisce che ogni cliente si senta seguita e valorizzata dall'ingresso fino al saluto finale. La sua presenza è parte integrante dell'esperienza Unika.</p>
+<div class="team-tags">
+<span class="team-tag">Accoglienza</span>
+<span class="team-tag">Cura del cliente</span>
+<span class="team-tag">Supporto</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- CONTATTI -->
+<section class="contatti" id="contatti">
+<div>
+<p class="section-label">Dove siamo</p>
+<h2 class="section-title">Vieni a<br><em>trovarci</em></h2>
+
+<div class="contatti-detail">
+<div class="detail-icon">📍</div>
+<div>
+<p class="detail-label">Indirizzo</p>
+<p class="detail-val">Via Genova 218/A<br>Torino (TO)</p>
+</div>
+</div>
+<div class="contatti-detail">
+<div class="detail-icon">📞</div>
+<div>
+<p class="detail-label">Telefono &amp; WhatsApp</p>
+<p class="detail-val">+39 375 9702283</p>
+</div>
+</div>
+<div class="contatti-detail">
+<div class="detail-icon">⏰</div>
+<div>
+<p class="detail-label">Orari di apertura</p>
+<table class="orari-table">
+<tr><td>Lunedì</td><td>9:00 – 19:00</td></tr>
+<tr><td>Martedì · Mercoledì · Giovedì</td><td>12:00 – 19:00</td></tr>
+<tr><td>Venerdì</td><td>9:00 – 19:00</td></tr>
+<tr class="closed"><td>Domenica</td><td>Chiuso</td></tr>
+</table>
+</div>
+</div>
+
+<a href="https://maps.google.com/?q=Via+Genova+218A+Torino" target="_blank" class="map-btn">
+<span>🗺</span>
+<span>Apri in Google Maps — Via Genova 218/A, Torino</span>
+</a>
+</div>
+
+<div>
+<h3 class="form-title">Prenota il tuo trattamento</h3>
+<div class="form-row">
+<div class="form-group"><label>Nome</label><input type="text" placeholder="Il tuo nome"></div>
+<div class="form-group"><label>Cognome</label><input type="text" placeholder="Il tuo cognome"></div>
+</div>
+<div class="form-group"><label>Telefono o Email</label><input type="text" placeholder="Come preferisci essere contattata"></div>
+<div class="form-group">
+<label>Trattamento desiderato</label>
+<select>
+<option value="">Seleziona un trattamento...</option>
+<optgroup label="Massaggi Olistici">
+<option>Massaggio Rilassante</option>
+<option>Massaggio Ayurvedico</option>
+<option>Massaggio Drenante</option>
+<option>Massaggio Anti-stress</option>
+<option>Percorso Benessere Personalizzato</option>
+</optgroup>
+<optgroup label="Trattamenti Estetici">
+<option>Manicure &amp; Nail Art</option>
+<option>Pedicure</option>
+<option>Ceretta &amp; Epilazione</option>
+<option>Trattamento Viso</option>
+<option>Trattamento Corpo</option>
+</optgroup>
+<optgroup label="Promozioni">
+<option>Rituale Primavera</option>
+<option>Benvenuta da Unika (prima visita)</option>
+<option>Benessere in Due</option>
+</optgroup>
+</select>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Data preferita</label><input type="date"></div>
+<div class="form-group">
+<label>Fascia oraria</label>
+<select>
+<option>Mattina (9:00 – 12:00)</option>
+<option>Pomeriggio (12:00 – 16:00)</option>
+<option>Tardo pomeriggio (16:00 – 19:00)</option>
+</select>
+</div>
+</div>
+<div class="form-group"><label>Note o richieste</label><textarea placeholder="Allergie, esigenze particolari, o raccontaci di te..."></textarea></div>
+<button class="btn-submit">Invia Richiesta di Prenotazione</button>
+<p class="form-note">Ti contatteremo entro 24 ore. Puoi anche scriverci su WhatsApp al +39 375 9702283.</p>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+<div class="footer-grid">
+<div>
+<p class="footer-logo">Unika</p>
+<p class="footer-tagline">Studio di estetica e benessere olistico nel cuore di Torino. La tua oasi di cura autentica.</p>
+<div class="footer-social">
+<a href="#" class="social-link">ig</a>
+<a href="#" class="social-link">fb</a>
+<a href="#" class="social-link">wa</a>
+</div>
+</div>
+<div>
+<p class="footer-col-title">Trattamenti</p>
+<ul class="footer-links">
+<li><a href="#olistico">Massaggi Olistici</a></li>
+<li><a href="#trattamenti">Manicure &amp; Nail Art</a></li>
+<li><a href="#trattamenti">Pedicure</a></li>
+<li><a href="#trattamenti">Ceretta</a></li>
+<li><a href="#trattamenti">Trattamenti Viso</a></li>
+<li><a href="#trattamenti">Trattamenti Corpo</a></li>
+</ul>
+</div>
+<div>
+<p class="footer-col-title">Studio</p>
+<ul class="footer-links">
+<li><a href="#studio">Lo Studio</a></li>
+<li><a href="#filosofia">Filosofia</a></li>
+<li><a href="#team">Il Team</a></li>
+<li><a href="#ecommerce">I nostri Prodotti</a></li>
+<li><a href="#promozioni">Promozioni</a></li>
+<li><a href="#contatti">Contatti</a></li>
+</ul>
+</div>
+<div>
+<p class="footer-col-title">Contatti</p>
+<ul class="footer-links">
+<li><a href="#">Via Genova 218/A, Torino</a></li>
+<li><a href="#">+39 375 9702283</a></li>
+<li><a href="#">Lun &amp; Ven · 9:00–19:00</a></li>
+<li><a href="#">Mar–Mer–Gio · 12:00–19:00</a></li>
+<li><a href="#">Dom · Chiuso</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>© 2026 Unika Studio di Estetica — Torino. Tutti i diritti riservati.</span>
+<span>Privacy Policy · Cookie Policy</span>
+</div>
+</footer>`;
+var SHOP_BODY = `<nav id="top">
+<a href="index.html" class="nav-logo">Unika</a>
+<ul class="nav-links">
+<li><a href="index.html">Home</a></li>
+<li><a href="#viso">Viso</a></li>
+<li><a href="#corpo">Corpo</a></li>
+<li><a href="#benessere">Benessere</a></li>
+<li><a href="#ordina" class="nav-cta">Ordina</a></li>
+</ul>
+</nav>
+
+<!-- HERO NEGOZIO -->
+<section class="shop-hero">
+<p class="section-label">Acquista in negozio</p>
+<h2 class="section-title">Il nostro <em>negozio</em></h2>
+<p class="shop-hero-text">Sfoglia la nostra linea di prodotti formulata da Silvia, organizzata per categoria. Scegli quello che preferisci e invia una richiesta d'ordine: ti risponderemo su WhatsApp per confermare disponibilità. Pagamento e ritiro avvengono comodamente in studio — nessun pagamento online.</p>
+</section>
+
+<!-- CATEGORIA VISO -->
+<section class="shop-category" id="viso">
+<p class="section-label">Categoria</p>
+<h2 class="section-title">Prodotti per il <em>viso</em></h2>
+<div class="shop-grid">
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&q=80" alt="Siero Illuminante Viso">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Viso · Sieri</p>
+<h3 class="shop-card-name">Siero Illuminante Viso</h3>
+<p class="shop-card-desc">Siero concentrato ad azione rigenerante e luminosante. Per restituire vitalità alla pelle affaticata.</p>
+</div>
+<p class="shop-card-price">€ 52,00</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- CATEGORIA CORPO -->
+<section class="shop-category" id="corpo">
+<p class="section-label">Categoria</p>
+<h2 class="section-title">Prodotti per il <em>corpo</em></h2>
+<div class="shop-grid">
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&q=80" alt="Olio Rigenerante Corpo">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Corpo · Oli</p>
+<h3 class="shop-card-name">Olio Rigenerante Corpo</h3>
+<p class="shop-card-desc">Formula ricca di oli vegetali pregiati per nutrire e rigenerare la pelle. Prolunga il benessere del massaggio.</p>
+</div>
+<p class="shop-card-price">€ 38,00</p>
+</div>
+</div>
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80" alt="Scrub Esfoliante Naturale">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Corpo · Scrub</p>
+<h3 class="shop-card-name">Scrub Esfoliante Naturale</h3>
+<p class="shop-card-desc">Scrub a base di ingredienti naturali per una pulizia profonda e una pelle vellutata. Perfetto prima di ogni trattamento corpo.</p>
+</div>
+<p class="shop-card-price">€ 29,00</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- CATEGORIA BENESSERE -->
+<section class="shop-category" id="benessere">
+<p class="section-label">Categoria</p>
+<h2 class="section-title">Prodotti <em>benessere</em></h2>
+<div class="shop-grid">
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&q=80" alt="Blend Aromaterapeutico">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Benessere · Aromaterapia</p>
+<h3 class="shop-card-name">Blend Aromaterapeutico</h3>
+<p class="shop-card-desc">Miscela di oli essenziali puri per creare armonia e calma. Per portare l'atmosfera Unika anche a casa tua.</p>
+</div>
+<p class="shop-card-price">€ 24,00</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- RICHIEDI ORDINE -->
+<section class="shop-order" id="ordina">
+<div class="shop-order-inner">
+<p class="section-label" style="justify-content:center;">Richiedi ordine</p>
+<h3 class="form-title" style="text-align:center;">Il tuo ordine</h3>
+<p class="shop-order-note">Compila il modulo: la richiesta verrà inviata direttamente su WhatsApp. Ti confermeremo disponibilità, modalità di pagamento in negozio e ritiro.</p>
+<form id="form-ordina">
+<div class="form-row">
+<div class="form-group"><label>Nome</label><input type="text" id="ord-nome" placeholder="Il tuo nome" required></div>
+<div class="form-group"><label>Telefono</label><input type="tel" id="ord-telefono" placeholder="Il tuo numero di telefono" required></div>
+</div>
+<div class="form-group">
+<label>Prodotto</label>
+<select id="ord-prodotto" required>
+<option value="">Seleziona un prodotto...</option>
+<optgroup label="Viso">
+<option>Siero Illuminante Viso (€ 52,00)</option>
+</optgroup>
+<optgroup label="Corpo">
+<option>Olio Rigenerante Corpo (€ 38,00)</option>
+<option>Scrub Esfoliante Naturale (€ 29,00)</option>
+</optgroup>
+<optgroup label="Benessere">
+<option>Blend Aromaterapeutico (€ 24,00)</option>
+</optgroup>
+</select>
+</div>
+<div class="form-group" style="max-width:160px;"><label>Quantità</label><input type="number" id="ord-quantita" min="1" value="1"></div>
+<div class="form-group"><label>Note</label><textarea id="ord-note" placeholder="Preferenze, orario di ritiro, o altre richieste..."></textarea></div>
+<button type="submit" class="btn-submit">Invia richiesta su WhatsApp</button>
+<p class="form-note">Il pagamento e il ritiro avvengono esclusivamente in negozio — nessun pagamento online. Ti risponderemo al più presto su WhatsApp.</p>
+</form>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+<div class="footer-grid">
+<div>
+<p class="footer-logo">Unika</p>
+<p class="footer-tagline">Studio di estetica e benessere olistico nel cuore di Torino. La tua oasi di cura autentica.</p>
+<div class="footer-social">
+<a href="#" class="social-link">ig</a>
+<a href="#" class="social-link">fb</a>
+<a href="#" class="social-link">wa</a>
+</div>
+</div>
+<div>
+<p class="footer-col-title">Negozio</p>
+<ul class="footer-links">
+<li><a href="#viso">Prodotti Viso</a></li>
+<li><a href="#corpo">Prodotti Corpo</a></li>
+<li><a href="#benessere">Prodotti Benessere</a></li>
+<li><a href="#ordina">Richiedi ordine</a></li>
+</ul>
+</div>
+<div>
+<p class="footer-col-title">Studio</p>
+<ul class="footer-links">
+<li><a href="index.html#studio">Lo Studio</a></li>
+<li><a href="index.html#filosofia">Filosofia</a></li>
+<li><a href="index.html#team">Il Team</a></li>
+<li><a href="index.html#contatti">Contatti</a></li>
+</ul>
+</div>
+<div>
+<p class="footer-col-title">Contatti</p>
+<ul class="footer-links">
+<li><a href="#">Via Genova 218/A, Torino</a></li>
+<li><a href="#">+39 375 9702283</a></li>
+<li><a href="#">Lun &amp; Ven · 9:00–19:00</a></li>
+<li><a href="#">Mar–Mer–Gio · 12:00–19:00</a></li>
+<li><a href="#">Dom · Chiuso</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>© 2026 Unika Studio di Estetica — Torino. Tutti i diritti riservati.</span>
+<span>Privacy Policy · Cookie Policy</span>
+</div>
+</footer>`;
+var REAL_CSS = `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+--sage: #8B7355;
+--sage-light: #C9B5A0;
+--sage-pale: #E8DCC8;
+--sage-deep: #6B5344;
+--blush: #D4A574;
+--blush-light: #E8D9C8;
+--blush-deep: #A67C52;
+--cream: #FAF8F4;
+--cream-warm: #F2EDE6;
+--white: #FEFCFA;
+--text: #2E2E2C;
+--text-mid: #5A5856;
+--text-soft: #8A8784;
+--font-display: 'Cormorant Garamond', serif;
+--font-body: 'DM Sans', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--cream); color: var(--text); font-family: var(--font-body); font-weight: 300; line-height: 1.7; overflow-x: hidden; }
+
+/* NAV */
+nav {
+position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+display: flex; justify-content: space-between; align-items: center;
+padding: 1.4rem 5rem;
+background: rgba(250,248,244,0.93); backdrop-filter: blur(14px);
+border-bottom: 1px solid rgba(139,115,85,0.18);
+transition: box-shadow 0.3s;
+}
+.nav-logo { font-family: var(--font-display); font-size: 1.9rem; font-weight: 300; font-style: italic; letter-spacing: 0.2em; color: var(--sage-deep); text-decoration: none; }
+.nav-links { display: flex; gap: 2.5rem; list-style: none; align-items: center; }
+.nav-links a { font-size: 0.72rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-mid); text-decoration: none; transition: color 0.3s; }
+.nav-links a:hover { color: var(--sage-deep); }
+.nav-cta { background: var(--sage-deep) !important; color: var(--white) !important; padding: 0.5rem 1.4rem !important; transition: background 0.3s !important; }
+.nav-cta:hover { background: var(--sage) !important; }
+
+/* HERO */
+.hero { min-height: 100vh; display: grid; grid-template-columns: 55% 45%; position: relative; overflow: hidden; }
+.hero-left {
+background: var(--sage-deep); display: flex; flex-direction: column; justify-content: center;
+padding: 10rem 5rem 5rem 6rem; position: relative; overflow: hidden;
+}
+.hero-left::before { content: ''; position: absolute; width: 500px; height: 500px; border-radius: 50%; border: 1px solid rgba(212,165,116,0.12); top: -100px; left: -200px; }
+.hero-left::after { content: ''; position: absolute; right: -2px; top: 0; bottom: 0; width: 90px; background: var(--sage-deep); clip-path: polygon(0 0, 0 100%, 100% 100%); z-index: 2; }
+.hero-eyebrow { font-size: 0.65rem; letter-spacing: 0.38em; text-transform: uppercase; color: var(--blush); margin-bottom: 1.8rem; display: flex; align-items: center; gap: 1rem; position: relative; z-index: 3; }
+.hero-eyebrow::before { content: ''; display: block; width: 36px; height: 1px; background: var(--blush-deep); }
+.hero-title { font-family: var(--font-display); font-size: clamp(3.8rem, 6.5vw, 6.5rem); font-weight: 300; line-height: 0.95; color: var(--white); margin-bottom: 2.2rem; position: relative; z-index: 3; }
+.hero-title em { font-style: italic; color: var(--blush); }
+.hero-sub { font-size: 0.88rem; color: rgba(254,252,250,0.62); max-width: 360px; line-height: 1.85; margin-bottom: 3rem; position: relative; z-index: 3; }
+.hero-actions { display: flex; gap: 1.5rem; align-items: center; position: relative; z-index: 3; }
+.btn-primary { display: inline-block; background: var(--blush-deep); color: var(--white); font-family: var(--font-body); font-size: 0.7rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; text-decoration: none; padding: 0.95rem 2.4rem; transition: background 0.3s, transform 0.3s; border: none; cursor: pointer; }
+.btn-primary:hover { background: #9a6f48; transform: translateY(-2px); }
+.btn-ghost { font-size: 0.7rem; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(248,228,220,0.75); text-decoration: none; border-bottom: 1px solid rgba(212,165,116,0.35); padding-bottom: 2px; transition: color 0.3s; }
+.btn-ghost:hover { color: var(--blush); }
+.hero-right { background: var(--blush-light); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.hero-visual { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; position: relative; padding: 4rem; }
+.hero-image { width: 100%; height: 100%; object-fit: cover; }
+.hero-ornament { position: absolute; width: 300px; height: 380px; border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%; border: 1px solid rgba(139,115,85,0.3); top: 50%; left: 50%; transform: translate(-50%,-50%); }
+.hero-ornament::after { content: ''; position: absolute; inset: 20px; border: 1px solid rgba(139,115,85,0.18); border-radius: inherit; }
+.hero-words { font-family: var(--font-display); font-style: italic; font-size: 1.05rem; color: var(--sage-deep); text-align: center; line-height: 2.2; z-index: 2; letter-spacing: 0.05em; }
+.hero-pill { position: absolute; bottom: 2.5rem; right: 2.5rem; background: var(--sage-deep); color: var(--white); font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.6rem 1.2rem; z-index: 2; }
+
+/* SHARED */
+.section-label { font-size: 0.62rem; letter-spacing: 0.38em; text-transform: uppercase; color: var(--sage); display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.1rem; }
+.section-label::before { content: ''; display: block; width: 28px; height: 1px; background: var(--sage-light); }
+.section-title { font-family: var(--font-display); font-size: clamp(2.4rem, 4vw, 3.8rem); font-weight: 300; line-height: 1.1; color: var(--text); }
+.section-title em { font-style: italic; color: var(--sage-deep); }
+
+/* GALLERY STUDIO */
+.gallery-studio { padding: 8rem 6rem; background: var(--white); }
+.gallery-studio .section-title { margin-bottom: 4rem; }
+.gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+.gallery-item { position: relative; overflow: hidden; height: 350px; border-radius: 4px; }
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+.gallery-item:hover img { transform: scale(1.05); }
+
+/* SEZIONE TRATTAMENTI PREVIEW */
+.trattamenti-preview { padding: 8rem 6rem; background: var(--cream); }
+.preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin-top: 3rem; }
+.preview-card { background: var(--white); padding: 2.5rem 2rem; text-align: center; border: 1px solid rgba(139,115,85,0.15); transition: transform 0.3s, box-shadow 0.3s; }
+.preview-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(107,83,68,0.1); }
+.preview-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.preview-title { font-family: var(--font-display); font-size: 1.4rem; color: var(--text); margin-bottom: 0.8rem; }
+.preview-desc { font-size: 0.82rem; color: var(--text-mid); line-height: 1.7; margin-bottom: 1.8rem; }
+.preview-link { display: inline-block; color: var(--sage-deep); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; border-bottom: 2px solid var(--blush-deep); padding-bottom: 0.3rem; transition: color 0.3s; }
+.preview-link:hover { color: var(--blush-deep); }
+
+/* PROMOZIONI PREVIEW */
+.promozioni-preview { padding: 8rem 6rem; background: var(--blush-light); }
+.promozioni-preview .section-title { margin-bottom: 3rem; }
+.promo-preview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; }
+.promo-preview-card { background: var(--white); padding: 3rem 2.5rem; border-left: 4px solid var(--blush-deep); position: relative; transition: transform 0.3s; }
+.promo-preview-card:hover { transform: translateX(8px); }
+.promo-preview-title { font-family: var(--font-display); font-size: 1.6rem; color: var(--text); margin-bottom: 0.8rem; font-style: italic; }
+.promo-preview-desc { font-size: 0.85rem; color: var(--text-mid); line-height: 1.8; margin-bottom: 1.8rem; }
+.promo-preview-badge { display: inline-block; background: var(--sage-pale); color: var(--sage-deep); padding: 0.4rem 0.9rem; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; }
+.promo-view-all { display: flex; justify-content: center; margin-top: 3rem; }
+
+/* ECOMMERCE SEZIONE */
+.ecommerce { padding: 8rem 6rem; background: var(--sage-deep); position: relative; overflow: hidden; }
+.ecommerce::before { content: ''; position: absolute; top: -120px; right: -120px; width: 480px; height: 480px; border-radius: 50%; border: 1px solid rgba(201,181,160,0.1); }
+.ecommerce .section-label { color: var(--sage-light); }
+.ecommerce .section-title { color: var(--white); margin-bottom: 1rem; }
+.ecommerce .section-title em { color: var(--blush); }
+.ecommerce-intro { font-size: 0.88rem; color: rgba(254,252,250,0.55); max-width: 520px; margin-bottom: 3rem; line-height: 1.9; }
+.ecommerce-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.5rem; margin-top: 3rem; }
+.ecommerce-card { background: rgba(254,252,250,0.08); border: 1px solid rgba(201,181,160,0.2); overflow: hidden; transition: transform 0.3s, background 0.3s; display: flex; }
+.ecommerce-card:hover { background: rgba(201,181,160,0.15); transform: translateY(-4px); }
+.ecommerce-image { width: 45%; height: 280px; object-fit: cover; }
+.ecommerce-content { padding: 2rem; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
+.ecommerce-label { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--blush-deep); margin-bottom: 0.6rem; }
+.ecommerce-name { font-family: var(--font-display); font-size: 1.4rem; color: var(--white); margin-bottom: 0.8rem; line-height: 1.3; }
+.ecommerce-desc { font-size: 0.78rem; color: rgba(254,252,250,0.5); line-height: 1.75; margin-bottom: 1.4rem; }
+.ecommerce-price { font-family: var(--font-display); font-size: 1.8rem; color: var(--blush); margin-bottom: 1.2rem; }
+.ecommerce-buy { display: inline-flex; align-items: center; gap: 0.6rem; background: var(--blush-deep); color: var(--white); padding: 0.7rem 1.6rem; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; transition: background 0.3s; border: none; cursor: pointer; }
+.ecommerce-buy:hover { background: #9a6f48; }
+
+/* FILOSOFIA */
+.filosofia { padding: 8rem 6rem; display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; background: var(--white); }
+.filosofia-quote { font-family: var(--font-display); font-size: clamp(1.5rem, 2.2vw, 2rem); font-weight: 300; font-style: italic; color: var(--text); line-height: 1.6; border-left: 2px solid var(--blush-deep); padding-left: 1.8rem; margin: 2.5rem 0; }
+.filosofia-text { font-size: 0.88rem; color: var(--text-mid); line-height: 1.95; }
+.filosofia-values { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.5rem; }
+.value-card { background: var(--cream-warm); padding: 1.8rem 1.6rem; border-top: 2px solid var(--sage-light); transition: border-color 0.3s; }
+.value-card:hover { border-color: var(--sage-deep); }
+.value-title { font-family: var(--font-display); font-size: 1.2rem; color: var(--text); margin-bottom: 0.4rem; }
+.value-desc { font-size: 0.78rem; color: var(--text-soft); line-height: 1.75; }
+
+/* OLISTICO */
+.olistico { padding: 8rem 6rem; background: var(--sage-pale); display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; }
+.olistico-visual { position: relative; height: 480px; display: flex; align-items: center; justify-content: center; }
+.olistico-circle { width: 340px; height: 340px; border-radius: 50%; background: var(--sage-light); opacity: 0.35; position: absolute; }
+.olistico-circle-sm { width: 200px; height: 200px; border-radius: 50%; background: var(--blush); opacity: 0.4; position: absolute; top: 30%; right: 10%; }
+.olistico-card { background: var(--white); padding: 2.5rem; z-index: 2; position: relative; width: 85%; box-shadow: 0 8px 40px rgba(107,83,68,0.1); }
+.olistico-card-title { font-family: var(--font-display); font-size: 1.5rem; font-style: italic; color: var(--sage-deep); margin-bottom: 1rem; }
+.olistico-card-text { font-size: 0.82rem; color: var(--text-mid); line-height: 1.85; }
+.massaggi-list { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.massaggio-item { display: flex; gap: 1.2rem; align-items: flex-start; padding: 1.4rem 1.6rem; background: var(--white); border-left: 3px solid var(--sage-light); transition: border-color 0.3s, transform 0.3s; }
+.massaggio-item:hover { border-color: var(--sage-deep); transform: translateX(4px); }
+.massaggio-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sage); margin-top: 6px; flex-shrink: 0; }
+.massaggio-name { font-family: var(--font-display); font-size: 1.1rem; color: var(--text); margin-bottom: 0.2rem; }
+.massaggio-desc { font-size: 0.78rem; color: var(--text-soft); line-height: 1.7; }
+
+/* TRATTAMENTI */
+.trattamenti { padding: 8rem 6rem; background: var(--cream); }
+.trattamenti-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4rem; }
+.trattamenti-note { font-size: 0.82rem; color: var(--text-soft); max-width: 280px; text-align: right; line-height: 1.8; }
+.trattamenti-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.trat-card { background: var(--white); padding: 2.8rem 2.2rem; border: 1px solid rgba(139,115,85,0.15); position: relative; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; }
+.trat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--blush-deep); transform: scaleX(0); transform-origin: left; transition: transform 0.4s ease; }
+.trat-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(107,83,68,0.1); }
+.trat-card:hover::after { transform: scaleX(1); }
+.trat-num { font-family: var(--font-display); font-size: 0.8rem; color: var(--sage-light); letter-spacing: 0.1em; margin-bottom: 1.2rem; }
+.trat-icon { font-size: 1.8rem; margin-bottom: 1rem; display: block; }
+.trat-name { font-family: var(--font-display); font-size: 1.4rem; font-weight: 400; color: var(--text); margin-bottom: 0.7rem; line-height: 1.2; }
+.trat-desc { font-size: 0.8rem; color: var(--text-soft); line-height: 1.8; margin-bottom: 1.3rem; }
+.trat-tag { font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sage-deep); border: 1px solid rgba(107,83,68,0.3); padding: 0.25rem 0.7rem; display: inline-block; }
+
+/* PROMOZIONI */
+.promozioni { padding: 8rem 6rem; background: var(--blush-light); }
+.promo-header { margin-bottom: 4rem; }
+.promo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.promo-card { background: var(--white); padding: 2.5rem 2.2rem; position: relative; overflow: hidden; border-top: 3px solid var(--blush-deep); transition: transform 0.3s; }
+.promo-card:hover { transform: translateY(-4px); }
+.promo-badge { position: absolute; top: 1.5rem; right: 1.5rem; background: var(--sage-deep); color: var(--white); font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.75rem; }
+.promo-eyebrow { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--blush-deep); margin-bottom: 0.8rem; }
+.promo-title { font-family: var(--font-display); font-size: 1.5rem; font-style: italic; color: var(--text); margin-bottom: 0.8rem; line-height: 1.25; }
+.promo-desc { font-size: 0.8rem; color: var(--text-soft); line-height: 1.8; margin-bottom: 1.5rem; }
+.promo-validity { font-size: 0.7rem; color: var(--sage); border-top: 1px solid rgba(139,115,85,0.2); padding-top: 1rem; }
+.promo-cta-wrap { margin-top: 3.5rem; text-align: center; }
+.promo-note { font-size: 0.82rem; color: var(--text-soft); margin-top: 1rem; }
+
+/* TEAM */
+.team { padding: 8rem 6rem; background: var(--cream-warm); }
+.team-header { text-align: center; margin-bottom: 5rem; }
+.team-header .section-label { justify-content: center; }
+.team-header .section-label::before { display: none; }
+.team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; max-width: 900px; margin: 0 auto; }
+.team-card { background: var(--white); display: grid; grid-template-columns: 110px 1fr; gap: 2rem; padding: 2.8rem; border-bottom: 3px solid var(--sage-light); transition: border-color 0.3s, transform 0.3s; }
+.team-card:hover { border-color: var(--sage-deep); transform: translateY(-4px); }
+.team-avatar { width: 90px; height: 90px; border-radius: 50%; background: var(--sage-pale); border: 2px solid var(--sage-light); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 2rem; font-style: italic; color: var(--sage-deep); align-self: start; }
+.team-name { font-family: var(--font-display); font-size: 1.8rem; font-weight: 300; color: var(--text); margin-bottom: 0.2rem; }
+.team-role { font-size: 0.67rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sage); margin-bottom: 1.1rem; }
+.team-bio { font-size: 0.82rem; color: var(--text-mid); line-height: 1.85; margin-bottom: 1.2rem; }
+.team-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.team-tag { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: var(--sage-pale); color: var(--sage-deep); padding: 0.22rem 0.7rem; }
+
+/* CONTATTI */
+.contatti { padding: 8rem 6rem; background: var(--white); display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: start; }
+.contatti-detail { display: flex; gap: 1.4rem; padding: 1.8rem 0; border-bottom: 1px solid rgba(139,115,85,0.15); }
+.contatti-detail:first-of-type { padding-top: 2rem; }
+.contatti-detail:last-of-type { border-bottom: none; }
+.detail-icon { width: 40px; height: 40px; background: var(--sage-pale); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+.detail-label { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sage); margin-bottom: 0.3rem; }
+.detail-val { font-size: 0.88rem; color: var(--text); line-height: 1.65; }
+.orari-table { width: 100%; margin-top: 0.5rem; }
+.orari-table tr td { font-size: 0.82rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(139,115,85,0.1); }
+.orari-table tr:last-child td { border-bottom: none; }
+.orari-table td:first-child { color: var(--text-soft); width: 58%; }
+.orari-table td:last-child { color: var(--text); font-weight: 400; }
+.orari-table .closed td { color: rgba(139,115,85,0.55); }
+.map-btn { display: flex; align-items: center; gap: 1rem; background: var(--sage-pale); border: 1px solid rgba(139,115,85,0.2); padding: 1.2rem 1.8rem; margin-top: 2rem; color: var(--sage-deep); text-decoration: none; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; transition: background 0.3s; }
+.map-btn:hover { background: var(--sage-light); }
+.form-title { font-family: var(--font-display); font-size: 2.2rem; font-weight: 300; color: var(--text); margin-bottom: 2rem; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sage); margin-bottom: 0.5rem; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--cream-warm); border: 1px solid rgba(139,115,85,0.22); padding: 0.82rem 1.1rem; font-family: var(--font-body); font-size: 0.84rem; color: var(--text); outline: none; transition: border-color 0.3s; appearance: none; border-radius: 0; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--sage-deep); }
+.form-group textarea { min-height: 110px; resize: vertical; }
+.btn-submit { width: 100%; background: var(--sage-deep); color: var(--white); font-family: var(--font-body); font-size: 0.7rem; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; border: none; padding: 1.1rem 2rem; cursor: pointer; margin-top: 0.5rem; transition: background 0.3s, transform 0.2s; }
+.btn-submit:hover { background: var(--sage); transform: translateY(-2px); }
+.form-note { font-size: 0.7rem; color: var(--text-soft); text-align: center; margin-top: 0.8rem; }
+
+/* FOOTER */
+footer { background: var(--text); padding: 5rem 6rem 3rem; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; margin-bottom: 4rem; }
+.footer-logo { font-family: var(--font-display); font-size: 2.4rem; font-weight: 300; font-style: italic; color: var(--white); margin-bottom: 1rem; }
+.footer-tagline { font-size: 0.8rem; color: rgba(254,252,250,0.38); line-height: 1.8; max-width: 250px; }
+.footer-social { display: flex; gap: 0.8rem; margin-top: 1.8rem; }
+.social-link { width: 36px; height: 36px; border: 1px solid rgba(201,181,160,0.2); display: flex; align-items: center; justify-content: center; color: rgba(254,252,250,0.38); text-decoration: none; font-size: 0.75rem; transition: all 0.3s; }
+.social-link:hover { border-color: var(--sage-light); color: var(--sage-light); }
+.footer-col-title { font-size: 0.62rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--sage-light); margin-bottom: 1.5rem; }
+.footer-links { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+.footer-links a { font-size: 0.8rem; color: rgba(254,252,250,0.4); text-decoration: none; transition: color 0.3s; }
+.footer-links a:hover { color: var(--sage-light); }
+.footer-bottom { border-top: 1px solid rgba(201,181,160,0.1); padding-top: 2rem; display: flex; justify-content: space-between; font-size: 0.7rem; color: rgba(254,252,250,0.22); }
+
+/* ANIMATIONS */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+.au { opacity: 0; animation: fadeUp 0.8s ease forwards; }
+.d1 { animation-delay: 0.1s; } .d2 { animation-delay: 0.25s; } .d3 { animation-delay: 0.4s; }
+
+/* MOBILE */
+@media (max-width: 900px) {
+nav { padding: 1.2rem 1.8rem; } .nav-links { display: none; }
+.hero { grid-template-columns: 1fr; } .hero-left { padding: 8rem 2.5rem 4rem; } .hero-left::after { display: none; } .hero-right { height: 55vw; }
+.gallery-grid { grid-template-columns: 1fr; }
+.preview-grid { grid-template-columns: 1fr; }
+.promo-preview-grid { grid-template-columns: 1fr; }
+.ecommerce-grid { grid-template-columns: 1fr; }
+.filosofia, .olistico, .contatti { grid-template-columns: 1fr; gap: 3rem; padding: 5rem 2.5rem; }
+.trattamenti, .promozioni, .team, .gallery-studio, .trattamenti-preview, .promozioni-preview, .ecommerce { padding: 5rem 2.5rem; }
+.trattamenti-grid, .promo-grid { grid-template-columns: 1fr; }
+.team-grid { grid-template-columns: 1fr; } .team-card { grid-template-columns: 1fr; }
+.footer-grid { grid-template-columns: 1fr 1fr; gap: 2rem; } footer { padding: 4rem 2.5rem 2rem; }
+}`;
+var SHOP_CSS = `
+/* ============================================= */
+/* NEGOZIO — stili aggiuntivi creati nell'editor  */
+/* (riusano le stesse variabili CSS del sito)     */
+/* ============================================= */
+.shop-hero { padding: 11rem 6rem 6rem; background: var(--sage-deep); position: relative; overflow: hidden; }
+.shop-hero::before { content: ''; position: absolute; top: -120px; right: -120px; width: 480px; height: 480px; border-radius: 50%; border: 1px solid rgba(201,181,160,0.1); }
+.shop-hero .section-label { color: var(--sage-light); }
+.shop-hero .section-title { color: var(--white); margin-bottom: 1.2rem; }
+.shop-hero .section-title em { color: var(--blush); }
+.shop-hero-text { font-size: 0.9rem; color: rgba(254,252,250,0.6); max-width: 620px; line-height: 1.9; position: relative; z-index: 2; }
+
+.shop-category { padding: 6rem 6rem; }
+.shop-category:nth-of-type(odd) { background: var(--cream); }
+.shop-category:nth-of-type(even) { background: var(--white); }
+.shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.5rem; margin-top: 3rem; }
+.shop-card { background: var(--white); border: 1px solid rgba(139,115,85,0.15); overflow: hidden; display: flex; transition: transform 0.3s, box-shadow 0.3s; }
+.shop-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(107,83,68,0.1); }
+.shop-card img { width: 42%; height: 240px; object-fit: cover; }
+.shop-card-content { padding: 1.8rem; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
+.shop-card-label { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--blush-deep); margin-bottom: 0.6rem; }
+.shop-card-name { font-family: var(--font-display); font-size: 1.3rem; color: var(--text); margin-bottom: 0.6rem; line-height: 1.3; }
+.shop-card-desc { font-size: 0.78rem; color: var(--text-mid); line-height: 1.75; }
+.shop-card-price { font-family: var(--font-display); font-size: 1.6rem; color: var(--sage-deep); margin-top: 1rem; }
+
+.shop-order { padding: 8rem 6rem; background: var(--cream-warm); display: flex; justify-content: center; }
+.shop-order-inner { width: 100%; max-width: 640px; }
+.shop-order-note { font-size: 0.8rem; color: var(--text-soft); text-align: center; margin-bottom: 2.5rem; line-height: 1.8; }
+
+@media (max-width: 900px) {
+  .shop-hero, .shop-category, .shop-order { padding: 5rem 2.5rem; }
+  .shop-hero { padding-top: 8rem; }
+  .shop-grid { grid-template-columns: 1fr; }
+  .shop-card { flex-direction: column; }
+  .shop-card img { width: 100%; }
+}`;
+var MAIN_JS = `// Unika — js/main.js
+// Unico compito: sulla pagina Negozio, il modulo "Richiedi ordine" compone
+// un messaggio e lo invia su WhatsApp al numero dello studio.
+// Nessun pagamento online: pagamento e ritiro avvengono in negozio.
+(function () {
+  var WHATSAPP_NUMBER = '393759702283';
+
+  function initOrderForm() {
+    var form = document.getElementById('form-ordina');
+    if (!form) return;
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var nome = (document.getElementById('ord-nome') || {}).value || '';
+      var telefono = (document.getElementById('ord-telefono') || {}).value || '';
+      var prodotto = (document.getElementById('ord-prodotto') || {}).value || '';
+      var quantita = (document.getElementById('ord-quantita') || {}).value || '1';
+      var note = (document.getElementById('ord-note') || {}).value || '';
+
+      if (!nome || !telefono || !prodotto) {
+        alert('Compila nome, telefono e prodotto per inviare la richiesta.');
+        return;
+      }
+
+      var righe = [
+        'Ciao! Vorrei ordinare da Unika:',
+        'Prodotto: ' + prodotto,
+        'Quantità: ' + quantita,
+        'Nome: ' + nome,
+        'Telefono: ' + telefono
+      ];
+      if (note) righe.push('Note: ' + note);
+      righe.push('(Pagamento e ritiro in negozio)');
+
+      var testo = righe.join('\n');
+      var url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(testo);
+      window.open(url, '_blank');
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initOrderForm);
+  } else {
+    initOrderForm();
+  }
+})();`;
+/* ================================================================
+   EDITOR VISIVO UNIKA — logica applicativa
+   Nessuna libreria di editing esterna: il sito reale viene mostrato
+   in un iframe con il SUO CSS reale applicato tal quale (nessun
+   parser di terze parti lo tocca). L'editing avviene sugli elementi
+   DOM reali dentro l'iframe.
+   ================================================================ */
+
+var FONT_LINK = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap";
+
+var BLOCKS = {
+  titolo:   { html: '<h2 class="section-title" style="padding:1rem 0;">Nuovo <em>titolo</em></h2>' },
+  testo:    { html: '<p style="padding:0.5rem 0; line-height:1.7; color:var(--text-mid); font-size:0.9rem;">Nuovo paragrafo di testo. Fai doppio click per modificarlo.</p>' },
+  immagine: { html: '<img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=900&q=80" alt="Nuova immagine" style="width:100%; height:320px; object-fit:cover;">' },
+  pulsante: { html: '<p style="padding:0.6rem 0;"><a href="#" class="btn-primary">Nuovo pulsante</a></p>' },
+  divisore: { html: '<hr style="border:none; border-top:1px solid rgba(139,115,85,0.25); margin:2rem 6rem;">' },
+  col2:     { html: '<div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; padding:3rem 6rem; background:var(--white);"><div style="padding:1.2rem; min-height:100px; border:1px dashed rgba(139,115,85,0.3);">Colonna 1</div><div style="padding:1.2rem; min-height:100px; border:1px dashed rgba(139,115,85,0.3);">Colonna 2</div></div>' },
+  col3:     { html: '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.5rem; padding:3rem 6rem; background:var(--white);"><div style="padding:1.2rem; min-height:100px; border:1px dashed rgba(139,115,85,0.3);">Colonna 1</div><div style="padding:1.2rem; min-height:100px; border:1px dashed rgba(139,115,85,0.3);">Colonna 2</div><div style="padding:1.2rem; min-height:100px; border:1px dashed rgba(139,115,85,0.3);">Colonna 3</div></div>' },
+  prodotto: { html: '<div class="shop-card" style="max-width:520px; margin:2rem auto;"><img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80" alt="Nuovo prodotto"><div class="shop-card-content"><div><p class="shop-card-label">Categoria</p><h3 class="shop-card-name">Nome prodotto</h3><p class="shop-card-desc">Breve descrizione del prodotto.</p></div><p class="shop-card-price">€ 0,00</p></div></div>' }
+};
+
+var EDITABLE_TEXT_TAGS = ['H1','H2','H3','H4','P','SPAN','A','LI','TD','BLOCKQUOTE','BUTTON','LABEL','STRONG','EM'];
+
+var pages = {
+  home: { html: HOME_BODY, undoStack: [], redoStack: [] },
+  shop: { html: SHOP_BODY, undoStack: [], redoStack: [] }
+};
+var current = 'home';
+var iframe = document.getElementById('canvas-frame');
+var doc = null;
+var iframeReady = false;
+var selectedEl = null;
+var historyArmed = false;
+
+function buildIframeDoc(bodyHtml) {
+  return '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<link href="' + FONT_LINK + '" rel="stylesheet">' +
+    '<style>' + REAL_CSS + '\n' + SHOP_CSS + '</style>' +
+    '<style id="editor-only-style">' +
+    '.ed-selected{outline:2px dashed #ff5a7a !important; outline-offset:2px;}' +
+    '[contenteditable="true"]{outline:2px solid #4fa8ff !important; outline-offset:2px; cursor:text;}' +
+    'body{cursor:pointer;}' +
+    '</style>' +
+    '</head><body>' + bodyHtml + '<script>' + MAIN_JS + '<\/script></body></html>';
+}
+
+function renderIframe() {
+  iframeReady = false;
+  selectedEl = null;
+  iframe.srcdoc = buildIframeDoc(pages[current].html);
+}
+
+function cleanSnapshotFromDoc() {
+  var clone = doc.body.cloneNode(true);
+  var sel = clone.querySelectorAll('.ed-selected');
+  for (var i = 0; i < sel.length; i++) sel[i].classList.remove('ed-selected');
+  var ce = clone.querySelectorAll('[contenteditable]');
+  for (var j = 0; j < ce.length; j++) ce[j].removeAttribute('contenteditable');
+  return clone.innerHTML;
+}
+
+function syncCurrentPage() {
+  if (iframeReady && doc && doc.body) {
+    pages[current].html = cleanSnapshotFromDoc();
+  }
+}
+
+function snapshotBeforeChange() {
+  if (!iframeReady) return;
+  pages[current].undoStack.push(cleanSnapshotFromDoc());
+  if (pages[current].undoStack.length > 40) pages[current].undoStack.shift();
+  pages[current].redoStack = [];
+}
+
+function restoreSnapshot(html) {
+  selectedEl = null;
+  doc.body.innerHTML = html;
+  refreshInspector();
+  refreshLayers();
+}
+
+function doUndo() {
+  var st = pages[current];
+  if (!st.undoStack.length) return;
+  st.redoStack.push(cleanSnapshotFromDoc());
+  var prev = st.undoStack.pop();
+  restoreSnapshot(prev);
+}
+
+function doRedo() {
+  var st = pages[current];
+  if (!st.redoStack.length) return;
+  st.undoStack.push(cleanSnapshotFromDoc());
+  var next = st.redoStack.pop();
+  restoreSnapshot(next);
+}
+
+function loadPage(name) {
+  if (name === current) return;
+  syncCurrentPage();
+  current = name;
+  document.querySelectorAll('.page-btn').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.page === name);
+  });
+  renderIframe();
+}
+
+/* ---------------- Selezione ---------------- */
+
+function cs(el) { return el.ownerDocument.defaultView.getComputedStyle(el); }
+
+function rgbToHex(rgb) {
+  if (!rgb) return '#000000';
+  var m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return '#000000';
+  function h(n) { var s = parseInt(n, 10).toString(16); return s.length === 1 ? '0' + s : s; }
+  return '#' + h(m[1]) + h(m[2]) + h(m[3]);
+}
+
+function selectElement(el) {
+  if (!el || el === doc.body || el === doc.documentElement) return;
+  if (selectedEl) selectedEl.classList.remove('ed-selected');
+  selectedEl = el;
+  el.classList.add('ed-selected');
+  refreshInspector();
+  refreshLayers();
+}
+
+function deselect() {
+  if (selectedEl) selectedEl.classList.remove('ed-selected');
+  selectedEl = null;
+  refreshInspector();
+  refreshLayers();
+}
+
+function describeEl(el) {
+  var s = el.tagName.toLowerCase();
+  if (el.id) s += '#' + el.id;
+  else if (el.className && typeof el.className === 'string' && el.className.trim()) {
+    s += '.' + el.className.trim().split(/\s+/)[0];
+  }
+  return s;
+}
+
+function refreshLayers() {
+  var box = document.getElementById('layers-container');
+  box.innerHTML = '';
+  if (!doc || !doc.body) return;
+  var top = Array.prototype.slice.call(doc.body.children);
+  top.forEach(function (el) {
+    var row = document.createElement('div');
+    row.className = 'layer-row' + (el === selectedEl ? ' active' : '');
+    row.textContent = describeEl(el);
+    row.addEventListener('click', function () {
+      selectElement(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    box.appendChild(row);
+  });
+}
+
+/* ---------------- Pannello proprietà ---------------- */
+
+var fFontFamily = document.getElementById('f-font-family');
+var fFontSize = document.getElementById('f-font-size');
+var fFontSizeUnit = document.getElementById('f-font-size-unit');
+var fFontWeight = document.getElementById('f-font-weight');
+var fFontStyle = document.getElementById('f-font-style');
+var fLineHeight = document.getElementById('f-line-height');
+var fLetterSpacing = document.getElementById('f-letter-spacing');
+var fColor = document.getElementById('f-color');
+var fBgColor = document.getElementById('f-bg-color');
+var fBgNone = document.getElementById('f-bg-none');
+var fPadding = document.getElementById('f-padding');
+var fMargin = document.getElementById('f-margin');
+var fSpaceUnit = document.getElementById('f-space-unit');
+var fRadius = document.getElementById('f-radius');
+var fWidth = document.getElementById('f-width');
+var fHref = document.getElementById('f-href');
+var fTargetBlank = document.getElementById('f-target-blank');
+var fImgSrc = document.getElementById('f-img-src');
+var fImgAlt = document.getElementById('f-img-alt');
+var badge = document.getElementById('selected-badge');
+var noSelMsg = document.getElementById('no-sel-msg');
+
+var GROUPS = ['grp-testo', 'grp-sfondo', 'grp-spaziatura', 'grp-link', 'grp-img'];
+
+function showGroups(list) {
+  GROUPS.forEach(function (id) {
+    document.getElementById(id).style.display = list.indexOf(id) > -1 ? '' : 'none';
+  });
+  noSelMsg.style.display = list.length ? 'none' : '';
+}
+
+function refreshInspector() {
+  if (!selectedEl) {
+    badge.textContent = 'Nessun elemento selezionato';
+    badge.classList.add('empty');
+    showGroups([]);
+    return;
+  }
+  badge.textContent = describeEl(selectedEl);
+  badge.classList.remove('empty');
+
+  var groups = ['grp-testo', 'grp-sfondo', 'grp-spaziatura'];
+  var tag = selectedEl.tagName;
+  if (tag === 'A') groups.push('grp-link');
+  if (tag === 'IMG') groups.push('grp-img');
+  showGroups(groups);
+
+  var c = cs(selectedEl);
+
+  // Font family: prova a far combaciare col valore inline, altrimenti lascia il primo
+  var famInline = selectedEl.style.fontFamily;
+  var match = false;
+  for (var i = 0; i < fFontFamily.options.length; i++) {
+    if (famInline && famInline.indexOf(fFontFamily.options[i].value.replace(/var\(--font-\w+\)/, '')) > -1) { match = true; }
+  }
+  if (!famInline) fFontFamily.selectedIndex = 0;
+
+  fFontSize.value = Math.round(parseFloat(c.fontSize) * 10) / 10;
+  fFontSizeUnit.value = 'px';
+  fFontWeight.value = String(Math.round(parseInt(c.fontWeight, 10) / 100) * 100).replace(/^([0-9])00$/, function (m, d) { return d + '00'; });
+  if (['300', '400', '500', '600', '700'].indexOf(fFontWeight.value) === -1) fFontWeight.value = '400';
+  fFontStyle.value = c.fontStyle === 'italic' ? 'italic' : 'normal';
+  var lh = selectedEl.style.lineHeight || '';
+  fLineHeight.value = lh ? parseFloat(lh) : (parseFloat(c.lineHeight) / parseFloat(c.fontSize)).toFixed(2);
+  fLetterSpacing.value = c.letterSpacing === 'normal' ? 0 : Math.round(parseFloat(c.letterSpacing) * 10) / 10;
+  fColor.value = rgbToHex(c.color);
+
+  var bg = c.backgroundColor;
+  var isTransparent = (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent');
+  fBgNone.checked = isTransparent;
+  fBgColor.value = isTransparent ? '#ffffff' : rgbToHex(bg);
+
+  fPadding.value = Math.round(parseFloat(c.paddingTop) || 0);
+  fMargin.value = Math.round(parseFloat(c.marginTop) || 0);
+  fSpaceUnit.value = 'px';
+  fRadius.value = Math.round(parseFloat(c.borderRadius) || 0);
+  fWidth.value = selectedEl.style.width || '';
+
+  document.querySelectorAll('.align-btns button').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.align === c.textAlign);
+  });
+
+  if (tag === 'A') {
+    fHref.value = selectedEl.getAttribute('href') || '';
+    fTargetBlank.checked = selectedEl.getAttribute('target') === '_blank';
+  }
+  if (tag === 'IMG') {
+    fImgSrc.value = selectedEl.getAttribute('src') || '';
+    fImgAlt.value = selectedEl.getAttribute('alt') || '';
+  }
+}
+
+function armHistoryOnce() {
+  if (!historyArmed) {
+    snapshotBeforeChange();
+    historyArmed = true;
+  }
+}
+document.getElementById('inspector').addEventListener('focusin', armHistoryOnce);
+document.getElementById('inspector').addEventListener('mousedown', armHistoryOnce);
+document.getElementById('inspector').addEventListener('focusout', function () { historyArmed = false; });
+
+function applyLive() {
+  if (!selectedEl) return;
+  selectedEl.style.fontFamily = fFontFamily.value;
+  selectedEl.style.fontSize = fFontSize.value + fFontSizeUnit.value;
+  selectedEl.style.fontWeight = fFontWeight.value;
+  selectedEl.style.fontStyle = fFontStyle.value;
+  selectedEl.style.lineHeight = fLineHeight.value;
+  selectedEl.style.letterSpacing = fLetterSpacing.value + 'px';
+  selectedEl.style.color = fColor.value;
+
+  if (fBgNone.checked) selectedEl.style.backgroundColor = 'transparent';
+  else selectedEl.style.backgroundColor = fBgColor.value;
+
+  selectedEl.style.padding = fPadding.value + fSpaceUnit.value;
+  selectedEl.style.margin = fMargin.value + fSpaceUnit.value;
+  selectedEl.style.borderRadius = fRadius.value + 'px';
+  if (fWidth.value) selectedEl.style.width = fWidth.value;
+
+  if (selectedEl.tagName === 'A') {
+    selectedEl.setAttribute('href', fHref.value || '#');
+    if (fTargetBlank.checked) selectedEl.setAttribute('target', '_blank');
+    else selectedEl.removeAttribute('target');
+  }
+  if (selectedEl.tagName === 'IMG') {
+    selectedEl.setAttribute('src', fImgSrc.value);
+    selectedEl.setAttribute('alt', fImgAlt.value);
+  }
+}
+
+['input', 'change'].forEach(function (evt) {
+  document.getElementById('inspector').addEventListener(evt, function (e) {
+    if (e.target.closest('.align-btns')) return;
+    applyLive();
+  });
+});
+
+document.querySelectorAll('.align-btns button').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    if (!selectedEl) return;
+    armHistoryOnce();
+    selectedEl.style.textAlign = btn.dataset.align;
+    document.querySelectorAll('.align-btns button').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+});
+
+document.getElementById('btn-duplicate').addEventListener('click', function () {
+  if (!selectedEl) return;
+  snapshotBeforeChange();
+  var clone = selectedEl.cloneNode(true);
+  clone.classList.remove('ed-selected');
+  selectedEl.after(clone);
+  selectElement(clone);
+});
+
+document.getElementById('btn-delete').addEventListener('click', function () {
+  if (!selectedEl) return;
+  if (!confirm('Eliminare questo elemento?')) return;
+  snapshotBeforeChange();
+  var toRemove = selectedEl;
+  selectedEl = null;
+  toRemove.remove();
+  refreshInspector();
+  refreshLayers();
+});
+
+/* ---------------- Inserimento blocchi ---------------- */
+
+function insertNodeSmart(node) {
+  var target = selectedEl;
+  if (target && target !== doc.body && target.parentElement) {
+    target.after(node);
+  } else {
+    var footer = doc.querySelector('footer');
+    if (footer) footer.before(node);
+    else doc.body.appendChild(node);
+  }
+}
+
+function insertBlockByKey(key) {
+  var def = BLOCKS[key];
+  if (!def) return;
+  snapshotBeforeChange();
+  var tmp = doc.createElement('div');
+  tmp.innerHTML = def.html;
+  var node = tmp.firstElementChild;
+  insertNodeSmart(node);
+  selectElement(node);
+  node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  refreshLayers();
+}
+
+document.querySelectorAll('.block-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () { insertBlockByKey(btn.dataset.block); });
+  btn.addEventListener('dragstart', function (e) {
+    e.dataTransfer.setData('text/plain', btn.dataset.block);
+    window.__draggingBlock = btn.dataset.block;
+  });
+  btn.addEventListener('dragend', function () { window.__draggingBlock = null; });
+});
+
+/* ---------------- Eventi canvas (iframe) ---------------- */
+
+function onIframeLoad() {
+  doc = iframe.contentDocument;
+  iframeReady = true;
+  selectedEl = null;
+  refreshInspector();
+  refreshLayers();
+
+  doc.addEventListener('click', function (e) {
+    var a = e.target.closest('a');
+    if (a) {
+      var href = a.getAttribute('href') || '';
+      if (href === 'shop.html') {
+        e.preventDefault();
+        document.querySelector('.page-btn[data-page="shop"]').click();
+        return;
+      }
+      if (href === 'index.html' || href.indexOf('index.html#') === 0) {
+        e.preventDefault();
+        document.querySelector('.page-btn[data-page="home"]').click();
+        return;
+      }
+    }
+    e.preventDefault();
+    if (e.target.isContentEditable) return; // lascia scrivere senza riselezionare
+    selectElement(e.target);
+  }, true);
+
+  doc.addEventListener('dblclick', function (e) {
+    var el = e.target;
+    if (EDITABLE_TEXT_TAGS.indexOf(el.tagName) === -1) return;
+    snapshotBeforeChange();
+    el.setAttribute('contenteditable', 'true');
+    el.focus();
+  });
+
+  doc.addEventListener('blur', function (e) {
+    var el = e.target;
+    if (el.getAttribute && el.getAttribute('contenteditable') === 'true') {
+      el.removeAttribute('contenteditable');
+    }
+  }, true);
+
+  doc.addEventListener('dragover', function (e) { e.preventDefault(); });
+  doc.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var key = window.__draggingBlock || e.dataTransfer.getData('text/plain');
+    var def = BLOCKS[key];
+    if (!def) return;
+    snapshotBeforeChange();
+    var tmp = doc.createElement('div');
+    tmp.innerHTML = def.html;
+    var node = tmp.firstElementChild;
+    var target = e.target.closest('section, footer, nav') || doc.querySelector('footer');
+    if (target) {
+      var rect = target.getBoundingClientRect();
+      var before = (e.clientY - rect.top) < rect.height / 2;
+      if (before) target.before(node); else target.after(node);
+    } else {
+      doc.body.appendChild(node);
+    }
+    selectElement(node);
+    refreshLayers();
+    window.__draggingBlock = null;
+  });
+}
+iframe.addEventListener('load', onIframeLoad);
+
+/* ---------------- Barra superiore ---------------- */
+
+document.querySelectorAll('.page-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () { loadPage(btn.dataset.page); });
+});
+
+document.querySelectorAll('.device-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.device-btn').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    var w = btn.dataset.device === 'Desktop' ? '100%' : (btn.dataset.device === 'Tablet' ? '768px' : '375px');
+    iframe.style.width = w;
+  });
+});
+
+document.getElementById('btn-undo').addEventListener('click', doUndo);
+document.getElementById('btn-redo').addEventListener('click', doRedo);
+
+/* ---------------- Esportazione ---------------- */
+
+function cleanHtmlString(html) {
+  var tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  tmp.querySelectorAll('.ed-selected').forEach(function (el) { el.classList.remove('ed-selected'); });
+  tmp.querySelectorAll('[contenteditable]').forEach(function (el) { el.removeAttribute('contenteditable'); });
+  tmp.querySelectorAll('[class=""]').forEach(function (el) { el.removeAttribute('class'); });
+  return tmp.innerHTML;
+}
+
+function pageWrapper(title, bodyHtml) {
+  return '<!DOCTYPE html>\n<html lang="it">\n<head>\n<meta charset="UTF-8">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+    '<title>' + title + '</title>\n' +
+    '<link href="' + FONT_LINK + '" rel="stylesheet">\n' +
+    '<link rel="stylesheet" href="css/style.css">\n' +
+    '</head>\n<body>\n' + bodyHtml + '\n<script src="js/main.js"><\/script>\n</body>\n</html>\n';
+}
+
+function downloadBlob(blob, name) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function downloadText(name, content) {
+  downloadBlob(new Blob([content], { type: 'text/plain' }), name);
+}
+
+document.getElementById('btn-export').addEventListener('click', function () {
+  syncCurrentPage();
+  var homeHtml = cleanHtmlString(pages.home.html);
+  var shopHtml = cleanHtmlString(pages.shop.html);
+  var indexFile = pageWrapper('Unika — Studio di Estetica &amp; Benessere Torino', homeHtml);
+  var shopFile = pageWrapper('Unika — Negozio', shopHtml);
+  var cssFile = REAL_CSS + '\n' + SHOP_CSS;
+  var jsFile = MAIN_JS;
+
+  if (window.JSZip) {
+    var zip = new JSZip();
+    zip.file('index.html', indexFile);
+    zip.file('shop.html', shopFile);
+    zip.folder('css').file('style.css', cssFile);
+    zip.folder('js').file('main.js', jsFile);
+    zip.generateAsync({ type: 'blob' }).then(function (blob) {
+      downloadBlob(blob, 'unika-sito.zip');
+    });
+  } else {
+    downloadText('index.html', indexFile);
+    downloadText('shop.html', shopFile);
+    downloadText('style.css', cssFile);
+    downloadText('main.js', jsFile);
+    alert('Lo zip automatico non è disponibile: sono stati scaricati 4 file separati. Organizzali così:\nindex.html\nshop.html\ncss/style.css\njs/main.js');
+  }
+});
+
+/* ---------------- Avvio ---------------- */
+renderIframe();
+</script>
+</body>
+</html>
