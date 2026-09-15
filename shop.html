@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unika — Negozio</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav id="top">
+<a href="index.html" class="nav-logo">Unika</a>
+<ul class="nav-links">
+<li><a href="index.html">Home</a></li>
+<li><a href="#viso">Viso</a></li>
+<li><a href="#corpo">Corpo</a></li>
+<li><a href="#benessere">Benessere</a></li>
+<li><a href="#ordina" class="nav-cta">Ordina</a></li>
+</ul>
+</nav>
+
+<!-- HERO NEGOZIO -->
+<section class="shop-hero">
+<p class="section-label">Acquista in negozio</p>
+<h2 class="section-title">Il nostro <em>negozio</em></h2>
+<p class="shop-hero-text">Sfoglia la nostra linea di prodotti formulata da Silvia, organizzata per categoria. Scegli quello che preferisci e invia una richiesta d'ordine: ti risponderemo su WhatsApp per confermare disponibilità. Pagamento e ritiro avvengono comodamente in studio — nessun pagamento online.</p>
+</section>
+
+<!-- CATEGORIA VISO -->
+<section class="shop-category" id="viso">
+<p class="section-label">Categoria</p>
+<h2 class="section-title">Prodotti per il <em>viso</em></h2>
+<div class="shop-grid">
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&amp;q=80" alt="Siero Illuminante Viso">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Viso · Sieri</p>
+<h3 class="shop-card-name">Siero Illuminante Viso</h3>
+<p class="shop-card-desc">Siero concentrato ad azione rigenerante e luminosante. Per restituire vitalità alla pelle affaticata.</p>
+</div>
+<p class="shop-card-price">€ 52,00</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- CATEGORIA CORPO -->
+<section class="shop-category" id="corpo">
+<p class="section-label">Categoria</p>
+<h2 class="section-title">Prodotti per il <em>corpo</em></h2>
+<div class="shop-grid">
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&amp;q=80" alt="Olio Rigenerante Corpo">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Corpo · Oli</p>
+<h3 class="shop-card-name">Olio Rigenerante Corpo</h3>
+<p class="shop-card-desc">Formula ricca di oli vegetali pregiati per nutrire e rigenerare la pelle. Prolunga il benessere del massaggio.</p>
+</div>
+<p class="shop-card-price">€ 38,00</p>
+</div>
+</div>
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&amp;q=80" alt="Scrub Esfoliante Naturale">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Corpo · Scrub</p>
+<h3 class="shop-card-name">Scrub Esfoliante Naturale</h3>
+<p class="shop-card-desc">Scrub a base di ingredienti naturali per una pulizia profonda e una pelle vellutata. Perfetto prima di ogni trattamento corpo.</p>
+</div>
+<p class="shop-card-price">€ 29,00</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- CATEGORIA BENESSERE -->
+<section class="shop-category" id="benessere">
+<p class="section-label">Categoria</p>
+<h2 class="section-title">Prodotti <em>benessere</em></h2>
+<div class="shop-grid">
+<div class="shop-card">
+<img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=500&amp;q=80" alt="Blend Aromaterapeutico">
+<div class="shop-card-content">
+<div>
+<p class="shop-card-label">Benessere · Aromaterapia</p>
+<h3 class="shop-card-name">Blend Aromaterapeutico</h3>
+<p class="shop-card-desc">Miscela di oli essenziali puri per creare armonia e calma. Per portare l'atmosfera Unika anche a casa tua.</p>
+</div>
+<p class="shop-card-price">€ 24,00</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- RICHIEDI ORDINE -->
+<section class="shop-order" id="ordina">
+<div class="shop-order-inner">
+<p class="section-label" style="justify-content:center;">Richiedi ordine</p>
+<h3 class="form-title" style="text-align:center;">Il tuo ordine</h3>
+<p class="shop-order-note">Compila il modulo: la richiesta verrà inviata direttamente su WhatsApp. Ti confermeremo disponibilità, modalità di pagamento in negozio e ritiro.</p>
+<form id="form-ordina">
+<div class="form-row">
+<div class="form-group"><label>Nome</label><input type="text" id="ord-nome" placeholder="Il tuo nome" required=""></div>
+<div class="form-group"><label>Telefono</label><input type="tel" id="ord-telefono" placeholder="Il tuo numero di telefono" required=""></div>
+</div>
+<div class="form-group">
+<label>Prodotto</label>
+<select id="ord-prodotto" required="">
+<option value="">Seleziona un prodotto...</option>
+<optgroup label="Viso">
+<option>Siero Illuminante Viso (€ 52,00)</option>
+</optgroup>
+<optgroup label="Corpo">
+<option>Olio Rigenerante Corpo (€ 38,00)</option>
+<option>Scrub Esfoliante Naturale (€ 29,00)</option>
+</optgroup>
+<optgroup label="Benessere">
+<option>Blend Aromaterapeutico (€ 24,00)</option>
+</optgroup>
+</select>
+</div>
+<div class="form-group" style="max-width:160px;"><label>Quantità</label><input type="number" id="ord-quantita" min="1" value="1"></div>
+<div class="form-group"><label>Note</label><textarea id="ord-note" placeholder="Preferenze, orario di ritiro, o altre richieste..."></textarea></div>
+<button type="submit" class="btn-submit">Invia richiesta su WhatsApp</button>
+<p class="form-note">Il pagamento e il ritiro avvengono esclusivamente in negozio — nessun pagamento online. Ti risponderemo al più presto su WhatsApp.</p>
+</form>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+<div class="footer-grid">
+<div>
+<p class="footer-logo">Unika</p>
+<p class="footer-tagline">Studio di estetica e benessere olistico nel cuore di Torino. La tua oasi di cura autentica.</p>
+<div class="footer-social">
+<a href="#" class="social-link">ig</a>
+<a href="#" class="social-link">fb</a>
+<a href="#" class="social-link">wa</a>
+</div>
+</div>
+<div>
+<p class="footer-col-title">Negozio</p>
+<ul class="footer-links">
+<li><a href="#viso">Prodotti Viso</a></li>
+<li><a href="#corpo">Prodotti Corpo</a></li>
+<li><a href="#benessere">Prodotti Benessere</a></li>
+<li><a href="#ordina">Richiedi ordine</a></li>
+</ul>
+</div>
+<div>
+<p class="footer-col-title">Studio</p>
+<ul class="footer-links">
+<li><a href="index.html#studio">Lo Studio</a></li>
+<li><a href="index.html#filosofia">Filosofia</a></li>
+<li><a href="index.html#team">Il Team</a></li>
+<li><a href="index.html#contatti">Contatti</a></li>
+</ul>
+</div>
+<div>
+<p class="footer-col-title">Contatti</p>
+<ul class="footer-links">
+<li><a href="#">Via Genova 218/A, Torino</a></li>
+<li><a href="#">+39 375 9702283</a></li>
+<li><a href="#">Lun &amp; Ven · 9:00–19:00</a></li>
+<li><a href="#">Mar–Mer–Gio · 12:00–19:00</a></li>
+<li><a href="#">Dom · Chiuso</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>© 2026 Unika Studio di Estetica — Torino. Tutti i diritti riservati.</span>
+<span>Privacy Policy · Cookie Policy</span>
+</div>
+</footer><script>// Unika — js/main.js
+// Unico compito: sulla pagina Negozio, il modulo "Richiedi ordine" compone
+// un messaggio e lo invia su WhatsApp al numero dello studio.
+// Nessun pagamento online: pagamento e ritiro avvengono in negozio.
+(function () {
+  var WHATSAPP_NUMBER = '393759702283';
+
+  function initOrderForm() {
+    var form = document.getElementById('form-ordina');
+    if (!form) return;
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var nome = (document.getElementById('ord-nome') || {}).value || '';
+      var telefono = (document.getElementById('ord-telefono') || {}).value || '';
+      var prodotto = (document.getElementById('ord-prodotto') || {}).value || '';
+      var quantita = (document.getElementById('ord-quantita') || {}).value || '1';
+      var note = (document.getElementById('ord-note') || {}).value || '';
+
+      if (!nome || !telefono || !prodotto) {
+        alert('Compila nome, telefono e prodotto per inviare la richiesta.');
+        return;
+      }
+
+      var righe = [
+        'Ciao! Vorrei ordinare da Unika:',
+        'Prodotto: ' + prodotto,
+        'Quantità: ' + quantita,
+        'Nome: ' + nome,
+        'Telefono: ' + telefono
+      ];
+      if (note) righe.push('Note: ' + note);
+      righe.push('(Pagamento e ritiro in negozio)');
+
+      var testo = righe.join('
+');
+      var url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(testo);
+      window.open(url, '_blank');
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initOrderForm);
+  } else {
+    initOrderForm();
+  }
+})();</script>
+<script src="js/main.js"></script>
+</body>
+</html>
